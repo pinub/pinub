@@ -1,0 +1,19 @@
+{{ define "title" }}Your Links{{ end }}
+
+{{ define "main" }}
+  <h2>{{ block "title" . }}{{ end }}</h2>
+
+  <ul class="links">
+    {{range .Links}}
+    <li>
+      <a href="{{.URL}}">{{.URL | url}}</a>
+      <span>
+        <time datetime="{{.CreatedAt | datetime}}">{{.CreatedAt | time}}</time>
+        <a data-id="{{.ID}}" class="delete">delete</a>
+        <a data-id="{{.ID}}" class="cancel">cancel</a>
+      </span>
+      </a>
+    </li>
+    {{end}}
+  </ul>
+{{ end }}

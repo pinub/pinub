@@ -1,0 +1,36 @@
+{{ define "title" }}Register{{ end }}
+
+{{ define "main" }}
+  <form method="post" class="register">
+    <fieldset>
+      <legend>{{ block "title" . }}{{ end }}</legend>
+      <div>
+        <label for="email">Email</label>
+        <input id="email" name="email" {{ if .User.Errors.Email }}class="error" {{ end }}type="email" placeholder="email@example.com" value="{{ .User.Email }}" required autofocus>
+				{{ with .User.Errors.Email }}
+					<small class="error">{{ . }}</small>
+				{{ end }}
+      </div>
+
+			<div>
+				<label for="password">Password</label>
+				<input id="password" name="password" {{ if .User.Errors.Password }}class="error" {{ end }}type="password" placeholder="password" required>
+				{{ with .User.Errors.Password }}
+					<small class="error">{{ . }}</small>
+				{{ end }}
+			</div>
+
+      <div>
+        <label for="password_confirm">Confirm Password</label>
+        <input id="password_confirm" name="password_confirm" {{ if .User.Errors.PasswordConfirm }}class="error" {{ end }}type="password" placeholder="password" required>
+				{{ with .User.Errors.PasswordConfirm }}
+					<small class="error">{{ . }}</small>
+				{{ end }}
+      </div>
+
+      <div>
+        <button type="submit">Register</button>
+      </div>
+    </fieldset>
+  </form>
+{{ end }}

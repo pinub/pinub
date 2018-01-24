@@ -1,0 +1,24 @@
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/apex/gateway"
+	_ "github.com/lib/pq"
+	"github.com/pinub/pinub/http"
+	"github.com/pinub/pinub/postgres"
+)
+
+func main() {
+	addr := ":" + os.Getenv("PORT")
+
+	client, err := postgres.NewClient(os.Getenv("DATABASE"))
+	if err != nil {
+		panic(err)
+	}
+	defer client.Close()
+
+	mux := http.New(client, "./views")
+	log.Fatal(gateway.ListenAndServe(addr, mux))
+}

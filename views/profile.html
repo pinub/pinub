@@ -1,0 +1,62 @@
+{{ define "title" }}Profile{{ end }}
+
+{{ define "main" }}
+  <h4>{{ block "title" . }}{{ end }}</h4>
+  <form method="post" class="register">
+    <input type="hidden" name="_method" value="put"/>
+    <fieldset>
+      <legend>Update Email</legend>
+      <div>
+        <label for="email">Email</label>
+        <input id="email" name="email" {{ if .User.Errors.Email }}class="error" {{ end }}type="email" placeholder="email@example.com" value="{{ .User.Email }}" required autofocus>
+        {{ with .User.Errors.Email }}
+          <small class="error">{{ . }}</small>
+        {{ end }}
+      </div>
+      <div>
+        <label for="password">Confirm with Password</label>
+        <input id="password" name="password" {{ if .User.Errors.Password }}class="error" {{ end }}type="password" placeholder="current password">
+        {{ with .User.Errors.Password }}
+          <small class="error">{{ . }}</small>
+        {{ end }}
+      </div>
+      <div>
+        <button type="submit">Update Email</button>
+      </div>
+    </fieldset>
+  </form>
+
+  <form method="post" class="register">
+    <input type="hidden" name="_method" value="put"/>
+    <fieldset>
+      <legend>Update Password</legend>
+      <div>
+        <label for="password">Current Password</label>
+        <input id="password" name="password" {{ if .User.Errors.Password }}class="error" {{ end }}type="password" placeholder="current password">
+        {{ with .User.Errors.Password }}
+          <small class="error">{{ . }}</small>
+        {{ end }}
+      </div>
+
+      <div>
+        <label for="new_password">New Password</label>
+        <input id="new_password" name="new_password" {{ if .User.Errors.NewPassword }}class="error" {{ end }}type="password" placeholder="new password">
+        {{ with .User.Errors.NewPassword }}
+          <small class="error">{{ . }}</small>
+        {{ end }}
+      </div>
+
+      <div>
+        <label for="new_password_confirm">Confirm New Password</label>
+        <input id="new_password_confirm" name="new_password_confirm" {{ if .User.Errors.NewPasswordConfirm }}class="error" {{ end }}type="password" placeholder="new password">
+        {{ with .User.Errors.NewPasswordConfirm }}
+          <small class="error">{{ . }}</small>
+        {{ end }}
+      </div>
+
+      <div>
+        <button type="submit">Update Password</button>
+      </div>
+    </fieldset>
+  </form>
+{{ end }}
