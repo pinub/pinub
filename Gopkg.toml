@@ -8,7 +8,7 @@
 
 [metadata.heroku]
   root-package = "github.com/pinub/pinub"
-  go-version = "go1.9.3"
+  go-version = "go1.9.2"
   install = ["./cmd/..."]
 
 [[constraint]]
