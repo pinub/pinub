@@ -14,6 +14,7 @@ import (
 
 	"github.com/pinub/mux"
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/http/gzip"
 )
 
 const (
@@ -78,7 +79,7 @@ func New(c pinub.Client, tmplPath string) http.Handler {
 	//		jsFilePath(),
 	//	}, h)
 	h = ctx.auth(h)
-	//h = gzip.New(h)
+	h = gzip.New(h)
 
 	return h //ctx.auth(gzip.New(ctx.deleteLinks(pusher(m))))
 }
