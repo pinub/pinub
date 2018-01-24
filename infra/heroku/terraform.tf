@@ -68,17 +68,19 @@ provider "cloudflare" {
 }
 
 resource "cloudflare_record" "pinub_com" {
-  domain = "${var.domain}"
-  name   = "pinub.com"
-  value  = "${heroku_domain.pinub_com.cname}"
-  type   = "CNAME"
+  domain  = "${var.domain}"
+  name    = "pinub.com"
+  value   = "${heroku_domain.pinub_com.cname}"
+  type    = "CNAME"
+  proxied = true
 }
 
 resource "cloudflare_record" "www_pinub_com" {
-  domain = "${var.domain}"
-  name   = "www"
-  value  = "${heroku_domain.www_pinub_com.cname}"
-  type   = "CNAME"
+  domain  = "${var.domain}"
+  name    = "www"
+  value   = "${heroku_domain.www_pinub_com.cname}"
+  type    = "CNAME"
+  proxied = true
 }
 
 # AWS
