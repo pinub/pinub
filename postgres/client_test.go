@@ -12,7 +12,7 @@ type Client struct {
 }
 
 func MustOpenClient() *Client {
-	client, err := postgres.NewClient(os.Getenv("DATABASE"))
+	client, err := postgres.NewClient(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		panic(err)
 	}
