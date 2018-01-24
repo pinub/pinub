@@ -7,11 +7,18 @@ terraform {
   }
 }
 
+variable "domain" {
+  type    = "string"
+  default = "pinub.com"
+}
+
 variable "heroku_email" {}
 variable "heroku_api_key" {}
 variable "heroku_webhook_url_sentry" {}
+variable "cloudflare_email" {}
+variable "cloudflare_token" {}
 
-# HEROKU related
+# HEROKU
 
 provider "heroku" {
   email   = "${var.heroku_email}"
@@ -29,6 +36,16 @@ resource "heroku_app" "pinub" {
   }
 }
 
+resource "heroku_domain" "pinub_com" {
+  app      = "${heroku_app.pinub.name}"
+  hostname = "${var.domain}"
+}
+
+resource "heroku_domain" "www_pinub_com" {
+  app      = "${heroku_app.pinub.name}"
+  hostname = "www.${var.domain}"
+}
+
 resource "heroku_addon" "pinub-database" {
   app  = "${heroku_app.pinub.name}"
   plan = "heroku-postgresql:hobby-dev"
@@ -43,7 +60,28 @@ resource "heroku_addon" "pinub-webhook-sentry" {
   }
 }
 
-# AWS related
+# CLOUDFLARE
+
+provider "cloudflare" {
+  email = "${var.cloudflare_email}"
+  token = "${var.cloudflare_token}"
+}
+
+resource "cloudflare_record" "pinub_com" {
+  domain = "${var.domain}"
+  name   = "pinub.com"
+  value  = "${heroku_domain.pinub_com.cname}"
+  type   = "CNAME"
+}
+
+resource "cloudflare_record" "www_pinub_com" {
+  domain = "${var.domain}"
+  name   = "www"
+  value  = "${heroku_domain.www_pinub_com.cname}"
+  type   = "CNAME"
+}
+
+# AWS
 
 provider "aws" {
   region = "eu-central-1"
