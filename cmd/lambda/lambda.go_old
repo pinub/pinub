@@ -13,7 +13,7 @@ import (
 func main() {
 	addr := ":" + os.Getenv("PORT")
 
-	client, err := postgres.NewClient(os.Getenv("DATABASE"))
+	client, err := postgres.New(os.Getenv("DATABASE"))
 	if err != nil {
 		panic(err)
 	}

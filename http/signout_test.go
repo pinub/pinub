@@ -2,44 +2,46 @@ package http_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/claim"
 )
 
 const signoutURL = "/signout"
 
-func TestHTTP_SignoutGet(t *testing.T) {
+func TestSignout(t *testing.T) {
 	t.Parallel()
-	h, c, r := setUp()
 
-	token := "2c316f20-ed46-4dab-9f76-96d4ea3a4bc7"
+	userToken := "2c316f20-ed46-4dab-9f76-96d4ea3a4bc7"
 
-	c.Us.UserByTokenFn = func(t string) (*pinub.User, error) {
+	userByTokenFn := func(token string) (*pinub.User, error) {
 		return &pinub.User{ID: "", Email: "", Password: "", Token: token}, nil
 	}
-
-	c.Us.RefreshTokenFn = func(u *pinub.User) error {
+	userRefreshTokenFn := func(*pinub.User) error {
 		return nil
 	}
 
 	cookie := &http.Cookie{
 		Name:    "keks",
-		Value:   token,
+		Value:   userToken,
 		Path:    "/",
 		Expires: time.Now().Add(14 * time.Hour * 24),
 	}
 
-	req, err := http.NewRequest("GET", signoutURL, nil)
-	req.AddCookie(cookie)
-	ok(t, err)
+	t.Run("signout", func(t *testing.T) {
+		handler, client, rec := setUp()
+		client.Us.UserByTokenFn = userByTokenFn
+		client.Us.RefreshTokenFn = userRefreshTokenFn
 
-	h.ServeHTTP(r, req)
-	equals(t, r.Code, http.StatusSeeOther)
+		req := httptest.NewRequest("GET", signoutURL, nil)
+		req.AddCookie(cookie)
+		handler.ServeHTTP(rec, req)
 
-	t.Log(r.Result().Cookies())
-	equals(t, true, c.Us.UserByTokenInvoked)
-	// cannot test because this runs in a goroutine
-	//equals(t, true, c.Us.RefreshTokenInvoked)
+		claim.Equals(t, 303, rec.Code)
+		claim.Equals(t, true, client.Us.UserByTokenInvoked)
+		claim.Equals(t, false, client.Us.RefreshTokenInvoked)
+	})
 }

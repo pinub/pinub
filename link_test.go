@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/claim"
 )
 
 func TestLink_IsValid(t *testing.T) {
@@ -17,7 +18,7 @@ func TestLink_IsValid(t *testing.T) {
 
 		for _, url := range urls {
 			link := &pinub.Link{URL: url}
-			assert(t, link.IsValid(), "link should be valid")
+			claim.Assert(t, link.IsValid(), "link should be valid")
 		}
 	})
 
@@ -31,7 +32,7 @@ func TestLink_IsValid(t *testing.T) {
 
 		for _, url := range urls {
 			link := &pinub.Link{URL: url}
-			assert(t, !link.IsValid(), "link should be invalid")
+			claim.Assert(t, !link.IsValid(), "link should be invalid")
 		}
 	})
 }

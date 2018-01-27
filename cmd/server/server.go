@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	client, err := postgres.NewClient(os.Getenv("DATABASE_URL"))
+	client, err := postgres.New(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		panic(err)
 	}

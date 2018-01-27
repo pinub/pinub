@@ -19,8 +19,8 @@ type Client struct {
 	userService UserService
 }
 
-// NewClient creates and returns a new Client struct.
-func NewClient(dataSource string) (*Client, error) {
+// New creates and returns a new Client struct.
+func New(dataSource string) (*Client, error) {
 	db, err := sql.Open(driver, dataSource)
 	if err != nil {
 		return nil, err
