@@ -1,68 +1,65 @@
 package postgres_test
 
 import (
+	"os"
 	"testing"
 
+	_ "github.com/lib/pq"
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/claim"
+	"github.com/pinub/pinub/postgres"
 )
 
-const linkURL = "http://example.com"
+const url = "http://example.com"
 
-func TestLinkService_CreateLink(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.LinkService()
+func TestLinkService(t *testing.T) {
+	t.Parallel()
 
-	l := pinub.Link{URL: linkURL}
-	u := createUser(c.UserService())
+	client, err := postgres.New(os.Getenv("DATABASE_URL"))
+	claim.Ok(t, err)
 
-	ok(t, s.CreateLink(&l, u))
-	equals(t, l.URL, linkURL)
+	link := pinub.Link{
+		URL: url,
+	}
+	user := pinub.User{
+		Email:    "link@example.de",
+		Password: "link",
+	}
+	s := client.LinkService()
+	claim.Ok(t, client.UserService().CreateUser(&user))
 
-	ok(t, s.DeleteLink(&l, u))
-}
+	t.Run("create link", func(t *testing.T) {
+		claim.Ok(t, s.CreateLink(&link, &user))
+		claim.Equals(t, url, link.URL)
 
-func TestLinkService_CreateLinkTwice(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.LinkService()
+		claim.Ok(t, s.DeleteLink(&link, &user))
+	})
 
-	l := pinub.Link{URL: linkURL}
-	u := createUser(c.UserService())
+	t.Run("create link twice", func(t *testing.T) {
+		claim.Ok(t, s.CreateLink(&link, &user))
+		claim.Ok(t, s.CreateLink(&link, &user))
 
-	ok(t, s.CreateLink(&l, u))
-	ok(t, s.CreateLink(&l, u))
+		claim.Ok(t, s.DeleteLink(&link, &user))
+	})
 
-	ok(t, s.DeleteLink(&l, u))
-}
+	t.Run("delete link", func(t *testing.T) {
+		claim.Ok(t, s.CreateLink(&link, &user))
 
-func TestLinkService_DeleteLink(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.LinkService()
+		claim.Ok(t, s.DeleteLink(&link, &user))
+	})
 
-	u := createUser(c.UserService())
-	l := pinub.Link{URL: linkURL}
+	t.Run("multiple links", func(t *testing.T) {
+		claim.Ok(t, s.CreateLink(&pinub.Link{URL: "http://example.com"}, &user))
+		claim.Ok(t, s.CreateLink(&pinub.Link{URL: "http://example.de"}, &user))
+		claim.Ok(t, s.CreateLink(&pinub.Link{URL: "http://example.io"}, &user))
+		claim.Ok(t, s.CreateLink(&pinub.Link{URL: "http://example.org"}, &user))
+		claim.Ok(t, s.CreateLink(&pinub.Link{URL: "http://example.net"}, &user))
 
-	ok(t, s.CreateLink(&l, u))
+		links, err := s.Links(&user)
+		claim.Ok(t, err)
 
-	ok(t, s.DeleteLink(&l, u))
-}
+		claim.Equals(t, 5, len(links))
+	})
 
-func TestLinkService_Links(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.LinkService()
-
-	u := createUser(c.UserService())
-	s.CreateLink(&pinub.Link{URL: "http://example.com"}, u)
-	s.CreateLink(&pinub.Link{URL: "http://example.de"}, u)
-	s.CreateLink(&pinub.Link{URL: "http://example.io"}, u)
-	s.CreateLink(&pinub.Link{URL: "http://example.org"}, u)
-	s.CreateLink(&pinub.Link{URL: "http://example.net"}, u)
-
-	links, err := s.Links(u)
-	ok(t, err)
-
-	equals(t, 5, len(links))
+	claim.Ok(t, client.UserService().DeleteUser(&user))
 }
