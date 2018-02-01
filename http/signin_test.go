@@ -2,189 +2,172 @@ package http_test
 
 import (
 	"errors"
-	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/claim"
 )
 
 const signinURL = "/signin"
 
-func TestHTTP_SigninGet(t *testing.T) {
+func TestSignin(t *testing.T) {
 	t.Parallel()
-	h, _, r := setUp()
 
-	req, err := http.NewRequest("GET", signinURL, nil)
-	ok(t, err)
+	userID := "45"
+	userToken := "cd6007cd-57f5-47e6-b3b2-e296fe1c4cba"
+	userEmail := "test@test.signin"
+	userPassword := "signin"
 
-	h.ServeHTTP(r, req)
-	equals(t, r.Code, http.StatusOK)
-}
-
-func TestHTTP_SigninPost(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test.test"
-	password := "blahblah"
-	id := "64f1001c-7992-470d-8e91-c64f8bc37326"
-	token := "cd6007cd-57f5-47e6-b3b2-e296fe1c4cba"
-
-	c.Us.UserFn = func(e string) (*pinub.User, error) {
-		pwd, _ := pinub.HashPassword(password)
-		return &pinub.User{ID: id, Email: e, Password: pwd}, nil
-	}
-
-	c.Us.AddTokenFn = func(u *pinub.User) error {
-		u.Token = token
-		return nil
-	}
-
-	data := url.Values{"email": {email}, "password": {password}}
-	req, err := http.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
-	ok(t, err)
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
-
-	equals(t, http.StatusSeeOther, r.Code)
-	equals(t, true, c.Us.UserInvoked)
-	equals(t, true, c.Us.AddTokenInvoked)
-
-	assert(t,
-		strings.Contains(r.Header().Get("Set-Cookie"), "keks="+token),
-		"cookie should be set")
-}
-
-func TestHTTP_SigninPostShortPassword(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test.test"
-	password := "bla"
-
-	data := url.Values{"email": {email}, "password": {password}}
-	req, err := http.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
-	ok(t, err)
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
-
-	equals(t, http.StatusOK, r.Code)
-	equals(t, false, c.Us.UserInvoked)
-
-	assert(t,
-		strings.Contains(r.Body.String(), pinub.ErrUserShortPassword.Error()),
-		"error message about short password should appear")
-}
-
-func TestHTTP_SigninPostInvalidEmail(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test"
-	password := "blah"
-
-	data := url.Values{"email": {email}, "password": {password}}
-	req, err := http.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
-	ok(t, err)
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
-
-	equals(t, http.StatusOK, r.Code)
-	equals(t, false, c.Us.UserInvoked)
-
-	assert(t,
-		strings.Contains(r.Body.String(), pinub.ErrUserInvalidEmail.Error()),
-		"error message about email format should appear")
-}
-
-func TestHTTP_SigninPostNoUser(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test.test"
-	password := "blahblah"
-
-	c.Us.UserFn = func(e string) (*pinub.User, error) {
+	noUserFn := func(string) (*pinub.User, error) {
 		return nil, errors.New("")
 	}
-
-	data := url.Values{"email": {email}, "password": {password}}
-	req, err := http.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
-	ok(t, err)
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
-
-	equals(t, http.StatusOK, r.Code)
-	equals(t, true, c.Us.UserInvoked)
-
-	assert(t,
-		strings.Contains(r.Body.String(), pinub.ErrUserPasswordNotCorrect.Error()),
-		"error message about email or password should appear")
-}
-
-func TestHTTP_SigninPostWrongPassword(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test.test"
-	password := "blahblah"
-	id := "64f1001c-7992-470d-8e91-c64f8bc37326"
-
-	c.Us.UserFn = func(e string) (*pinub.User, error) {
-		pwd, _ := pinub.HashPassword("different password")
-		return &pinub.User{ID: id, Email: e, Password: pwd}, nil
+	userFn := func(email string) (*pinub.User, error) {
+		pwd, _ := pinub.HashPassword(userPassword)
+		return &pinub.User{ID: userID, Email: email, Password: pwd}, nil
 	}
-
-	data := url.Values{"email": {email}, "password": {password}}
-	req, err := http.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
-	ok(t, err)
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
-
-	equals(t, http.StatusOK, r.Code)
-	equals(t, true, c.Us.UserInvoked)
-
-	assert(t,
-		strings.Contains(r.Body.String(), pinub.ErrUserPasswordNotCorrect.Error()),
-		"error message about email or password should appear")
-}
-
-func TestHTTP_SigninPostCannotCreateToken(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test.test"
-	password := "blahblah"
-	id := "64f1001c-7992-470d-8e91-c64f8bc37326"
-
-	c.Us.UserFn = func(e string) (*pinub.User, error) {
-		pwd, _ := pinub.HashPassword(password)
-		return &pinub.User{ID: id, Email: e, Password: pwd}, nil
+	userWrongPasswordFn := func(email string) (*pinub.User, error) {
+		return &pinub.User{ID: userID, Email: email, Password: "different"}, nil
 	}
-
-	c.Us.AddTokenFn = func(u *pinub.User) error {
+	addTokenFn := func(u *pinub.User) error {
+		u.Token = userToken
+		return nil
+	}
+	addTokenErrorFn := func(*pinub.User) error {
 		return errors.New("")
 	}
 
-	data := url.Values{"email": {email}, "password": {password}}
-	req, err := http.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
-	ok(t, err)
+	t.Run("signin get", func(t *testing.T) {
+		handler, _, rec := setUp()
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
+		req := httptest.NewRequest("GET", signinURL, nil)
+		handler.ServeHTTP(rec, req)
 
-	equals(t, http.StatusOK, r.Code)
-	equals(t, true, c.Us.UserInvoked)
-	equals(t, true, c.Us.AddTokenInvoked)
+		claim.Equals(t, 200, rec.Code)
+	})
 
-	assert(t,
-		strings.Contains(r.Body.String(), "Cannot sign in user"),
-		"error message that sign in was not successful")
+	t.Run("signin success", func(t *testing.T) {
+		handler, client, rec := setUp()
+		client.Us.UserFn = userFn
+		client.Us.AddTokenFn = addTokenFn
+
+		data := url.Values{
+			"email":    {userEmail},
+			"password": {userPassword},
+		}
+		req := httptest.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
+
+		claim.Equals(t, 303, rec.Code)
+		claim.Equals(t, true, client.Us.UserInvoked)
+		claim.Equals(t, true, client.Us.AddTokenInvoked)
+
+		claim.Assert(t,
+			strings.Contains(rec.Header().Get("Set-Cookie"), "keks="+userToken),
+			"cookie should be set")
+	})
+
+	t.Run("signin short password", func(t *testing.T) {
+		handler, client, rec := setUp()
+
+		data := url.Values{
+			"email":    {userEmail},
+			"password": {"bla"},
+		}
+		req := httptest.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
+
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, false, client.Us.UserInvoked)
+
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), pinub.ErrUserShortPassword.Error()),
+			"error message about short password should appear")
+	})
+
+	t.Run("signin invalid email", func(t *testing.T) {
+		handler, client, rec := setUp()
+
+		data := url.Values{
+			"email":    {"test@test"},
+			"password": {userPassword},
+		}
+		req := httptest.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
+
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, false, client.Us.UserInvoked)
+
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), pinub.ErrUserInvalidEmail.Error()),
+			"error message about email format should appear")
+	})
+
+	t.Run("signin no user", func(t *testing.T) {
+		handler, client, rec := setUp()
+		client.Us.UserFn = noUserFn
+
+		data := url.Values{
+			"email":    {userEmail},
+			"password": {userPassword},
+		}
+		req := httptest.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
+
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, true, client.Us.UserInvoked)
+
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), pinub.ErrUserPasswordNotCorrect.Error()),
+			"error message about email or password should appear")
+	})
+
+	t.Run("signin wrong password", func(t *testing.T) {
+		handler, client, rec := setUp()
+		client.Us.UserFn = userWrongPasswordFn
+
+		data := url.Values{
+			"email":    {userEmail},
+			"password": {userPassword},
+		}
+		req := httptest.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
+
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, true, client.Us.UserInvoked)
+
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), pinub.ErrUserPasswordNotCorrect.Error()),
+			"error message about email or password should appear")
+	})
+
+	t.Run("signin cannot create token", func(t *testing.T) {
+		handler, client, rec := setUp()
+		client.Us.UserFn = userFn
+		client.Us.AddTokenFn = addTokenErrorFn
+
+		data := url.Values{
+			"email":    {userEmail},
+			"password": {userPassword},
+		}
+		req := httptest.NewRequest("POST", signinURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
+
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, true, client.Us.UserInvoked)
+		claim.Equals(t, true, client.Us.AddTokenInvoked)
+
+		t.Log(rec.Body.String())
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), "Cannot sign in user"),
+			"error message about email or password should appear")
+	})
 }

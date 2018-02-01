@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/claim"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -25,7 +26,7 @@ func TestUser_IsValid(t *testing.T) {
 				Email:    email,
 				Password: validPassword,
 			}
-			assert(t, u.IsValid(), "email should be valid")
+			claim.Assert(t, u.IsValid(), "email should be valid")
 		}
 	})
 
@@ -40,7 +41,7 @@ func TestUser_IsValid(t *testing.T) {
 				Email:    email,
 				Password: validPassword,
 			}
-			assert(t, !u.IsValid(), "email should be invalid")
+			claim.Assert(t, !u.IsValid(), "email should be invalid")
 		}
 	})
 
@@ -60,7 +61,7 @@ func TestUser_IsValid(t *testing.T) {
 				Email:    validEmail,
 				Password: password,
 			}
-			assert(t, u.IsValid(), "password should be valid")
+			claim.Assert(t, u.IsValid(), "password should be valid")
 		}
 	})
 
@@ -74,7 +75,7 @@ func TestUser_IsValid(t *testing.T) {
 				Email:    validEmail,
 				Password: password,
 			}
-			assert(t, !u.IsValid(), "password should be invalid")
+			claim.Assert(t, !u.IsValid(), "password should be invalid")
 		}
 	})
 }

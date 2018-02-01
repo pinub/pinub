@@ -1,17 +1,16 @@
 package http_test
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
-	"reflect"
-	"runtime"
 	"testing"
 
+	"github.com/pinub/pinub/claim"
 	my "github.com/pinub/pinub/http"
 	"github.com/pinub/pinub/mock"
 )
+
+const indexURL = "/"
 
 func setUp() (http.Handler, *mock.Client, *httptest.ResponseRecorder) {
 	c := &mock.Client{}
@@ -21,59 +20,33 @@ func setUp() (http.Handler, *mock.Client, *httptest.ResponseRecorder) {
 	return my.New(c, "../views"), c, httptest.NewRecorder()
 }
 
-func TestHTTP_Index(t *testing.T) {
+func TestHTTP(t *testing.T) {
 	t.Parallel()
-	h, _, r := setUp()
 
-	req, err := http.NewRequest("GET", "/", nil)
-	ok(t, err)
+	t.Run("index", func(t *testing.T) {
+		handler, _, rec := setUp()
 
-	h.ServeHTTP(r, req)
-	equals(t, r.Code, http.StatusOK)
-}
+		req := httptest.NewRequest("GET", indexURL, nil)
+		handler.ServeHTTP(rec, req)
 
-func TestHTTP_IgnoredFiles(t *testing.T) {
-	h, _, r := setUp()
+		claim.Equals(t, 200, rec.Code)
+	})
 
-	requests := []string{
-		"/apple-touch-icon-120x120-precomposed.png",
-		"/apple-touch-icon-120x120.png",
-		"/apple-touch-icon.png",
-		"/favicon.ico",
-	}
+	t.Run("ignored files", func(t *testing.T) {
+		handler, _, rec := setUp()
 
-	for _, request := range requests {
-		req, err := http.NewRequest("GET", request, nil)
-		ok(t, err)
+		requests := []string{
+			"/apple-touch-icon-120x120-precomposed.png",
+			"/apple-touch-icon-120x120.png",
+			"/apple-touch-icon.png",
+			"/favicon.ico",
+		}
 
-		h.ServeHTTP(r, req)
-		equals(t, r.Code, http.StatusNotFound)
-	}
-}
+		for _, url := range requests {
+			req := httptest.NewRequest("GET", url, nil)
+			handler.ServeHTTP(rec, req)
 
-// assert fails the test if the condition is false.
-func assert(tb testing.TB, condition bool, msg string, v ...interface{}) {
-	if !condition {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d: "+msg+"\033[39m\n\n", append([]interface{}{filepath.Base(file), line}, v...)...)
-		tb.FailNow()
-	}
-}
-
-// ok fails the test if an err is not nil.
-func ok(tb testing.TB, err error) {
-	if err != nil {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d: unexpected error: %s\033[39m\n\n", filepath.Base(file), line, err.Error())
-		tb.FailNow()
-	}
-}
-
-// equals fails the test if want is not equal to got.
-func equals(tb testing.TB, want, got interface{}) {
-	if !reflect.DeepEqual(want, got) {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d:\n\n\twant: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, want, got)
-		tb.FailNow()
-	}
+			claim.Equals(t, 404, rec.Code)
+		}
+	})
 }

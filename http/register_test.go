@@ -2,178 +2,156 @@ package http_test
 
 import (
 	"errors"
-	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/claim"
 )
 
 const registerURL = "/register"
 
-func TestHTTP_RegisterGet(t *testing.T) {
+func TestRegister(t *testing.T) {
 	t.Parallel()
-	h, _, r := setUp()
 
-	req, err := http.NewRequest("GET", registerURL, nil)
-	ok(t, err)
+	userID := "42"
+	userToken := "57f4dd05-638c-43c7-80c6-738900ce9b80"
+	userEmail := "test@test.test"
+	userPassword := "blah"
 
-	h.ServeHTTP(r, req)
-	equals(t, r.Code, http.StatusOK)
-}
-
-func TestHTTP_RegisterPost(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test.test"
-	password := "blah"
-	id := "577edcd9-2d7d-4872-896a-bcd4665d70e6"
-	token := "57f4dd05-638c-43c7-80c6-738900ce9b80"
-
-	c.Us.UserFn = func(e string) (*pinub.User, error) {
+	noUserFn := func(string) (*pinub.User, error) {
 		return nil, errors.New("")
 	}
-
-	c.Us.CreateUserFn = func(u *pinub.User) error {
-		u.ID = id
+	userFn := func(string) (*pinub.User, error) {
+		return &pinub.User{ID: userID}, nil
+	}
+	createUserFn := func(u *pinub.User) error {
+		u.ID = userID
+		return nil
+	}
+	addTokenFn := func(u *pinub.User) error {
+		u.Token = userToken
 		return nil
 	}
 
-	c.Us.AddTokenFn = func(u *pinub.User) error {
-		u.Token = token
-		return nil
-	}
+	t.Run("get register", func(t *testing.T) {
+		handler, _, rec := setUp()
+		req := httptest.NewRequest("GET", registerURL, nil)
+		handler.ServeHTTP(rec, req)
 
-	data := url.Values{
-		"email":            {email},
-		"password":         {password},
-		"password_confirm": {password},
-	}
-	req, err := http.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
-	ok(t, err)
+		claim.Equals(t, 200, rec.Code)
+	})
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
+	t.Run("post register", func(t *testing.T) {
+		handler, client, rec := setUp()
+		client.Us.UserFn = noUserFn
+		client.Us.CreateUserFn = createUserFn
+		client.Us.AddTokenFn = addTokenFn
 
-	equals(t, http.StatusSeeOther, r.Code)
-	equals(t, true, c.Us.UserInvoked)
-	equals(t, true, c.Us.CreateUserInvoked)
-	equals(t, true, c.Us.AddTokenInvoked)
+		data := url.Values{
+			"email":            {userEmail},
+			"password":         {userPassword},
+			"password_confirm": {userPassword},
+		}
+		req := httptest.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
 
-	assert(t,
-		strings.Contains(r.Header().Get("Set-Cookie"), "keks="+token),
-		"cookie should be set")
+		claim.Equals(t, 303, rec.Code)
+		claim.Equals(t, true, client.Us.UserInvoked)
+		claim.Equals(t, true, client.Us.CreateUserInvoked)
+		claim.Equals(t, true, client.Us.AddTokenInvoked)
 
-	t.Log(r.Body.String())
-}
+		claim.Assert(t,
+			strings.Contains(rec.Header().Get("Set-Cookie"), "keks="+userToken),
+			"cookie should be set")
+	})
 
-func TestHTTP_RegsiterPostInvalidEmail(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
+	t.Run("post register invalid email", func(t *testing.T) {
+		t.Parallel()
 
-	email := "test@test"
-	password := "blah"
+		handler, client, rec := setUp()
+		data := url.Values{
+			"email":            {"test@test"},
+			"password":         {userPassword},
+			"password_confirm": {userPassword},
+		}
+		req := httptest.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
 
-	data := url.Values{
-		"email":            {email},
-		"password":         {password},
-		"password_confirm": {password},
-	}
-	req, err := http.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
-	ok(t, err)
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, false, client.Us.CreateUserInvoked)
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), pinub.ErrUserInvalidEmail.Error()),
+			"error message about email format should appear")
+	})
 
-	equals(t, http.StatusOK, r.Code)
-	equals(t, false, c.Us.UserInvoked)
+	t.Run("post register short password", func(t *testing.T) {
+		t.Parallel()
 
-	assert(t,
-		strings.Contains(r.Body.String(), pinub.ErrUserInvalidEmail.Error()),
-		"error message about email format should appear")
-}
+		handler, client, rec := setUp()
+		data := url.Values{
+			"email":            {userEmail},
+			"password":         {"bla"},
+			"password_confirm": {"bla"},
+		}
+		req := httptest.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
 
-func TestHTTP_RegisterPostShortPassword(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, false, client.Us.UserInvoked)
 
-	email := "test@test.test"
-	password := "bla"
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), pinub.ErrUserShortPassword.Error()),
+			"error message about short password should appear")
+	})
 
-	data := url.Values{
-		"email":            {email},
-		"password":         {password},
-		"password_confirm": {password},
-	}
-	req, err := http.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
-	ok(t, err)
+	t.Run("post register different confirm password", func(t *testing.T) {
+		t.Parallel()
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
+		handler, client, rec := setUp()
+		data := url.Values{
+			"email":            {userEmail},
+			"password":         {userPassword},
+			"password_confirm": {"different password"},
+		}
+		req := httptest.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
 
-	equals(t, http.StatusOK, r.Code)
-	equals(t, false, c.Us.UserInvoked)
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, false, client.Us.UserInvoked)
 
-	assert(t,
-		strings.Contains(r.Body.String(), pinub.ErrUserShortPassword.Error()),
-		"error message about short password should appear")
-}
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), "Passwords do not match"),
+			"error message about confirm password should appear")
+	})
 
-func TestHTTP_RegisterPostDifferentConfirm(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
+	t.Run("post register present user", func(t *testing.T) {
+		t.Parallel()
 
-	email := "test@test.test"
-	password := "blah"
+		handler, client, rec := setUp()
+		client.Us.UserFn = userFn
 
-	data := url.Values{
-		"email":            {email},
-		"password":         {password},
-		"password_confirm": {password + "blah"},
-	}
-	req, err := http.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
-	ok(t, err)
+		data := url.Values{
+			"email":            {userEmail},
+			"password":         {userPassword},
+			"password_confirm": {userPassword},
+		}
+		req := httptest.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		handler.ServeHTTP(rec, req)
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
+		claim.Equals(t, 200, rec.Code)
+		claim.Equals(t, true, client.Us.UserInvoked)
 
-	equals(t, http.StatusOK, r.Code)
-	equals(t, false, c.Us.UserInvoked)
-
-	assert(t,
-		strings.Contains(r.Body.String(), "Passwords do not match"),
-		"error message about confirm password should appear")
-}
-
-func TestHTTP_RegisterPostUserPresent(t *testing.T) {
-	t.Parallel()
-	h, c, r := setUp()
-
-	email := "test@test.test"
-	password := "blah"
-
-	c.Us.UserFn = func(e string) (*pinub.User, error) {
-		return &pinub.User{ID: "1", Email: email}, nil
-	}
-
-	data := url.Values{
-		"email":            {email},
-		"password":         {password},
-		"password_confirm": {password},
-	}
-	req, err := http.NewRequest("POST", registerURL, strings.NewReader(data.Encode()))
-	ok(t, err)
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(r, req)
-
-	equals(t, http.StatusOK, r.Code)
-	equals(t, true, c.Us.UserInvoked)
-
-	t.Log(r.Body.String())
-	assert(t,
-		strings.Contains(r.Body.String(), "User exists already"),
-		"error message about existing user should appear")
+		claim.Assert(t,
+			strings.Contains(rec.Body.String(), "User exists already"),
+			"error message about existing user should appear")
+	})
 }

@@ -1,99 +1,97 @@
 package postgres_test
 
 import (
+	"os"
 	"testing"
 
+	_ "github.com/lib/pq"
 	"github.com/pinub/pinub"
+	"github.com/pinub/pinub/claim"
+	"github.com/pinub/pinub/postgres"
 )
 
-const userEmail = "test@example.de"
-const userPassword = "test"
+const (
+	email    = "test@example.de"
+	password = "test"
+)
 
-func createUser(s pinub.UserService) *pinub.User {
-	u := pinub.User{
-		Email:    userEmail,
-		Password: userPassword,
+func TestUserService(t *testing.T) {
+	t.Parallel()
+
+	client, err := postgres.New(os.Getenv("DATABASE_URL"))
+	claim.Ok(t, err)
+
+	user := pinub.User{
+		Email:    email,
+		Password: password,
 	}
-	if err := s.CreateUser(&u); err != nil {
-		panic(err)
-	}
+	s := client.UserService()
 
-	return &u
-}
+	t.Run("create user", func(t *testing.T) {
+		claim.Ok(t, s.CreateUser(&user))
 
-func TestUserService_CreateUser_DeleteUser(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.UserService()
+		claim.Equals(t, email, user.Email)
+		claim.Equals(t, password, user.Password)
 
-	u := createUser(s)
+		claim.Ok(t, s.DeleteUser(&user))
+	})
 
-	equals(t, u.Password, userPassword)
-	equals(t, u.Email, userEmail)
+	t.Run("update user", func(t *testing.T) {
+		claim.Ok(t, s.CreateUser(&user))
 
-	ok(t, s.DeleteUser(u))
-}
+		newEmail := "another@email.com"
+		user.Email = newEmail
+		claim.Ok(t, s.UpdateUser(&user))
+		claim.Equals(t, newEmail, user.Email)
 
-func TestUserService_Update(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.UserService()
+		newPassword := "another password"
+		user.Password = newPassword
+		claim.Ok(t, s.UpdateUser(&user))
+		claim.Equals(t, newPassword, user.Password)
 
-	u := createUser(s)
+		user.Email = email
+		user.Password = password
 
-	u.Email = "another@email.com"
-	ok(t, s.UpdateUser(u))
-	equals(t, u.Email, "another@email.com")
+		claim.Ok(t, s.DeleteUser(&user))
+	})
 
-	u.Password = "new password"
-	ok(t, s.UpdateUser(u))
-	equals(t, u.Password, "new password")
+	t.Run("get user", func(t *testing.T) {
+		claim.Ok(t, s.CreateUser(&user))
 
-	ok(t, s.DeleteUser(u))
-}
+		u, err := s.User(email)
+		claim.Ok(t, err)
 
-func TestUserService_User(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.UserService()
+		claim.Equals(t, email, u.Email)
+		claim.Equals(t, password, u.Password)
 
-	createUser(s)
+		claim.Ok(t, s.DeleteUser(&user))
+	})
 
-	user, err := s.User(userEmail)
-	ok(t, err)
+	t.Run("duplicate email", func(t *testing.T) {
+		claim.Ok(t, s.CreateUser(&user))
 
-	equals(t, user.Password, userPassword)
-	equals(t, user.Email, userEmail)
+		user2 := pinub.User{
+			Email:    email,
+			Password: "bogous",
+		}
+		s.CreateUser(&user2)
 
-	ok(t, s.DeleteUser(user))
-}
+		claim.Equals(t, user.ID, user2.ID)
 
-func TestUserService_DuplicateEmail(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.UserService()
+		claim.Ok(t, s.DeleteUser(&user))
+	})
 
-	u1 := createUser(s)
-	u2 := createUser(s)
-	equals(t, u1.ID, u2.ID)
+	t.Run("add token", func(t *testing.T) {
+		claim.Ok(t, s.CreateUser(&user))
+		claim.Ok(t, s.AddToken(&user))
 
-	ok(t, s.DeleteUser(u2))
-}
+		claim.Equals(t, len(user.Token), len("747dacda-c33d-4647-a7f8-0cb87a5b4a24"))
 
-func TestUserService_AddToken_ByToken_RefreshToken(t *testing.T) {
-	c := MustOpenClient()
-	defer c.Close()
-	s := c.UserService()
+		user2, err := s.UserByToken(user.Token)
+		claim.Ok(t, err)
+		claim.Equals(t, user.ID, user2.ID)
+		claim.Ok(t, s.RefreshToken(&user))
 
-	u := createUser(s)
-	ok(t, s.AddToken(u))
-
-	equals(t, len(u.Token), len("747dacda-c33d-4647-a7f8-0cb87a5b4a24"))
-
-	u1, err := s.UserByToken(u.Token)
-	ok(t, err)
-	equals(t, u, u1)
-	ok(t, s.RefreshToken(u))
-
-	ok(t, s.DeleteUser(u))
+		claim.Ok(t, s.DeleteUser(&user))
+	})
 }
