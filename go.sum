@@ -1,0 +1,15 @@
+github.com/NYTimes/gziphandler v1.0.0 h1:OswZCvpiFsNRCbeapdJxDuikAqVXTgV7XAht8S9olZo=
+github.com/NYTimes/gziphandler v1.0.0/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
+github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
+github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/lib/pq v0.0.0-20171126050459-83612a56d3dd h1:2RDaVc4/izhWyAvYxNm8c9saSyCDIxefNwOcqaH7pcU=
+github.com/lib/pq v0.0.0-20171126050459-83612a56d3dd/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
+github.com/pinub/mux v1.0.2 h1:NCW9Rc8bPxJ73DI3CS451EsbsSn5PrPAmc/Dbu+hyhM=
+github.com/pinub/mux v1.0.2/go.mod h1:eh9AZIhbqiiZaXqXmuYwBtbVSs2+HkxhmLwpe4WT+sU=
+github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
+github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
+github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+golang.org/x/crypto v0.0.0-20171128194009-94eea52f7b74 h1:tJPDBgnvRBr/cDv54KIfTbVhREArfmr25jw8GcNSI4A=
+golang.org/x/crypto v0.0.0-20171128194009-94eea52f7b74/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
